@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Downloader</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <style>
+        *{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f7fa;
+            margin: 0;
+            padding: 0;
+            position: relative;
+            min-height: 100vh;
+            max-height:fit-content ;
+        }
+
+        header {
+            background-color: #2e3b4e;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin: 0;
+        }
+
+        .container {
+           
+            width: 50%;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-size: 14px;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        #id_url {
+            padding: 12px 15px;
+            font-size: 16px;
+            margin-bottom: 5px;
+            border: 2px solid #ccc;
+            border-radius: 6px;
+            width: 100%;
+            box-sizing: border-box;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        #id_url:focus {
+            border-color: #4CAF50;
+            box-shadow: 0 0 8px rgba(76, 175, 80, 0.3);
+        }
+
+        button {
+            margin-top: 20px;
+            background-color: #4dc751;
+            color: white;
+            font-size: 16px;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            width: 100%;
+        }
+
+        button:hover {
+            background-color: #1b5e20;
+        }
+
+        #formats-container {
+            margin: 20px auto;
+        }
+
+        .formats-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .formats-list li {
+            padding: 12px;
+            background-color: #f1f1f1;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+        }
+
+        .formats-list input {
+            margin-right: 10px;
+        }
+
+        #thumbnail-container {
+            text-align: center;
+            margin: 20px auto;
+        }
+
+        .thumbnail {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
+
+        .error-message {
+            color: red;
+            font-size: 14px;
+            margin-top: 20px;
+        }
+
+        #loading-indicator {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            text-align: center;
+            z-index: 999;
+            display: grid;
+            place-items: center;
+            background-color: transparent
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #0095f6;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                width: 90%;
+                margin: 20px;
+            }
+
+            h1 {
+                font-size: 20px;
+            }
+
+            button {
+                padding: 12px;
+            }
+        }
+        footer {
+    background-color: #2e3b4e;
+    color: white;
+    text-align: center;
+    padding: 10px 0;
+    position: absolute;
+    bottom: -20px;
+    width: 100%;
+    font-size: 14px;
+}
+
+.footer-content p {
+    margin: 0;
+}
+
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>YouTube Video Downloader</h1>
+    </header>
+
+    <div id="loading-indicator" style="display: none;">
+        <div class="spinner"></div>
+   
+    </div>
+
+    <div class="container">
+        <form id="url-form" method="post">
+            {% csrf_token %}
+            <label for="url">Enter YouTube Video URL:</label>
+            {{ form.url }}
+            <button type="submit" id="check-formats-btn">Check Formats</button>
+        </form>
+
+        <div id="thumbnail-container"></div>
+        <div id="formats-container"></div>
+        <div class="error-message" id="error-message"></div>
+     
+        
+</div>
+<footer>
+    <div class="footer-content">
+        <p>&copy; 2024 Yadhu Gopakumar. All Rights Reserved.</p>
+    </div>
+</footer>
+    <script>
+        $(document).ready(function () {
+            $('#url-form').submit(function (e) {
+                e.preventDefault();  // Prevent default form submission
+
+                const url = $("input[name='url']").val();  // Get URL
+
+                // Check if URL is empty
+                if (!url) {
+                    alert("Please enter a YouTube URL.");
+                    return;
+                }
+
+                // Show loading indicator
+                $('#loading-indicator').show();
+                $('#thumbnail-container').html('');
+                $('#formats-container').html('');
+                // AJAX request to fetch formats
+                $.ajax({
+                    url: "{% url 'get_video_formats' %}",
+                    data: { 'url': url },
+                    dataType: 'json',
+                    success: function (response) {
+                        $('#loading-indicator').hide();  // Hide loading spinner
+
+                        if (response.formats) {
+                            // Display video thumbnail
+                            if (response.thumbnail) {
+                                $('#thumbnail-container').html(`<img class="thumbnail" src="${response.thumbnail}" alt="Video Thumbnail">`);
+                            } else {
+                                $('#thumbnail-container').html('');
+                            }
+
+                            let formatsHtml = "<h3>Available Video Formats:</h3><ul class='formats-list'>";
+                            response.formats.forEach(function (format) {
+                                formatsHtml += `<button id="download-btn" style="margin: 5px auto;background-color:#98bd99">
+                                    <a href="${format.url}" name='video.mp4' download="downloaded_video.mp4" style="text-decoration:none;color:black;font-weight:bold;"> ${format.description} - ${format.type}</a>
+                                </button>`;
+                            });
+                            formatsHtml += "</ul>";
+
+                            $('#formats-container').html(formatsHtml);  // Show formats
+                            $('#error-message').html('');  // Clear error messages
+                        } else if (response.error) {
+                            $('#formats-container').html('');
+                            $('#thumbnail-container').html('');
+                            $('#error-message').html(response.error);
+                        }
+                    },
+                    error: function () {
+                        $('#loading-indicator').hide();  // Hide spinner
+                        $('#formats-container').html('');
+                        $('#thumbnail-container').html('');
+                        $('#error-message').html("An error occurred while fetching formats.");
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+
+</html>
